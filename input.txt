@@ -1,4 +1,4 @@
 filter.language=in
 kafka.bootstrap.server=slave1:9092,slave2:9092,slave3:9092
-kafka.save.topic=nlp
+kafka.sink.topic=twitter-graph-sink,twitter-nlp-sink
 batch.windows=100
