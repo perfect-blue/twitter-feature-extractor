@@ -1,4 +1,5 @@
-filter.language=in
 kafka.bootstrap.server=slave1:9092,slave2:9092,slave3:9092
+kafka.source.topic=twitter-test
 kafka.sink.topic=twitter-graph-sink,twitter-nlp-sink
+hadoop.path=/user/vsm/twitter/real-time/graph
 batch.windows=100

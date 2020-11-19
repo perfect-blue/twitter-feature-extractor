@@ -13,15 +13,19 @@ object Utillities {
   /**
    * Read input parameters
    */
-  def setupInput() = {
+  def setupInput():List[String] = {
     import scala.io.Source
-
+    var parameters=List[String]()
     for (line <- Source.fromFile("input.txt").getLines) {
 //      val fields = line.split(" ")
 //      if (fields.length == 2) {
 //        System.setProperty("twitter4j.oauth." + fields(0), fields(1))
 //      }
-      print(line+"\n")
+     val fields = line.split("=")
+     parameters :+=fields(1)
+
     }
+
+    parameters
   }
 }
