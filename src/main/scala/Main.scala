@@ -1,11 +1,11 @@
-import java.io.BufferedReader
-
 import Utillities._
+import org.apache.spark.sql.streaming.Trigger
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import scala.concurrent.duration._
 
 object Main {
   val spark = SparkSession.builder()
-    .master("local[2]")
+    .master("local[*]")
     .appName("Twitter-Feature-Extractor")
     .getOrCreate()
 
@@ -16,16 +16,23 @@ object Main {
       .format("kafka")
       .option("kafka.bootstrap.servers",input(0))
       .option("subscribe",input(1))
-      .option("startingoffset","latest")
-      .option("checkpointlocation","../checkpoint/test1/")
       .load()
 
     setupLogging()
+    val featureExtractor:FeatureExtractor=new FeatureExtractor(spark,twitterDF)
+    val GraphFeatureDF = featureExtractor.grapFeature()
 
-    twitterDF
+    GraphFeatureDF
       .writeStream
       .format("console")
+//      .trigger(
+//        Trigger.ProcessingTime(2.minutes)
+//      )
       .outputMode("append")
+      .option("truncate",false)
+//      .option("header",true)
+//      .option("path","D:/dump/graph-tweet/result")
+//      .option("checkpointLocation","D:/dump/graph-tweet/checkpoint")
       .start()
       .awaitTermination()
 
