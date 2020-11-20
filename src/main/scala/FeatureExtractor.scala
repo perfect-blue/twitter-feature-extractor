@@ -3,6 +3,7 @@ import java.util
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions._
 import Schema._
+import org.apache.spark.sql.types.{DataType, DataTypes}
 class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
   import spark.implicits._
 
@@ -31,23 +32,38 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
       expr("tweet.payload.UserMentionEntities.Id") as("Mention_Id"),
       expr("tweet.payload.UserMentionEntities.Name") as("Mention_Name"),
       expr("tweet.payload.UserMentionEntities.Text") as("Mention_UserName")
+    ).filter($"tweet.payload.Lang"==="in")
 
-    )
-
-  def grapFeature():DataFrame={
+  def graphFeature():DataFrame={
     val graphTweet=tweet
       .withColumn("Interactions",
         getInteraction(col("InReplyToScreenName"),col("Retweet"),
           col("Mention_UserName")))
-      .select($"Id",$"Text",$"UserName".as("source"),$"CurrentUserRetweetId",
-        $"FollowersCount",$"FriendsCount",$"FavouritesCount",$"StatusesCount",
-        $"Interactions"(0).as("Interaction"), $"Interactions"(1).as("target"))
+      .select(
+        $"CreatedAt",
+        $"Id",
+        $"Text",
+        $"UserName".as("Source"),
+        $"CurrentUserRetweetId",
+        $"FollowersCount",
+        $"FriendsCount",
+        $"FavouritesCount",
+        $"StatusesCount",
+        $"Interactions"(0).as("Interaction"),
+        $"Interactions"(1).as("Target"),
+        $"Interactions"(2).cast(DataTypes.IntegerType).as("Interaction_weight")
+      )
 
 
-    graphTweet
+    val weighted_graph=graphTweet
+      .groupBy(window(col("CreatedAt"),"10 minutes").as("Time"),
+        col("Source"),
+        col("Target"))
+      .agg(
+        sum("Interaction_weight").as("Interaction")
+      )
 
-//      tweet.printSchema()
-//      tweet
+    weighted_graph.sort($"Interaction".desc)
    }
 
   /**
@@ -62,13 +78,12 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
       val isRetweet=inReplyToScreenName==null && retweet==true
 
     if(isReply){
-      Array("reply",inReplyToScreenName)
+      Array("reply",inReplyToScreenName,"3")
     }else if(isRetweet){
-      Array("retweet",mention(0))
+      Array("retweet",mention(0),"1")
     }else{
-      Array("tweet",null)
+      Array("tweet",null,"0")
     }
   }
-
 
 }

@@ -20,7 +20,7 @@ object Main {
 
     setupLogging()
     val featureExtractor:FeatureExtractor=new FeatureExtractor(spark,twitterDF)
-    val GraphFeatureDF = featureExtractor.grapFeature()
+    val GraphFeatureDF = featureExtractor.graphFeature()
 
     GraphFeatureDF
       .writeStream
@@ -28,7 +28,7 @@ object Main {
 //      .trigger(
 //        Trigger.ProcessingTime(2.minutes)
 //      )
-      .outputMode("append")
+      .outputMode("complete")
       .option("truncate",false)
 //      .option("header",true)
 //      .option("path","D:/dump/graph-tweet/result")
