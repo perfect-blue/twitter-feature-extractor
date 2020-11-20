@@ -55,6 +55,18 @@ object Schema {
     .add(USER_MENTION_TEXT_FIELD,DataTypes.StringType)
     .add(USER_MENTION_USERNAME_FIELD,DataTypes.StringType)
 
+  /**
+   * EXTENDED MEDIA ENTITY
+   */
+  val EXTENDED_MEDIA_ENTITY_FIELD="ExtendedMediaEntity"
+  val EXTENDED_MEDIA_ID_FIELD="Id"
+  val EXTENDED_MEDIA_TYPE_FIELD="Type"
+  val EXTENDED_MEDIA_MEDIA_URL_FIELD="MediaURL"
+  val EXTENDED_MEDIA_URL_FIELD = "URL"
+  val EXTENDED_TEXT_URL_FIELD = "Text"
+  val EXTENDED_EXPANDED_URL = "ExpandedURL"
+
+
 
   /**
    * STATUS:
@@ -81,6 +93,7 @@ object Schema {
   val RETWEET_COUNT_FIELD="RetweetCount"
   val FAVORITE_COUNT_FIELD="FavoriteCount"
   val CURRENT_USER_RETWEET_ID_FIELD="CurrentUserRetweetId"
+  val CONTRIBUTOR_FIELD="Contributors"
   val LANG_FIELD="Lang"
 
   val STATUS_STRUCT:StructType = new StructType()
@@ -97,10 +110,13 @@ object Schema {
     .add(USER_FIELD, USER_STRUCT)
     .add(RETWEET_FIELD,DataTypes.BooleanType)
     .add(USER_MENTION_ENTITY_FIELD,DataTypes.createArrayType(USER_MENTION_ENTITY_STRUCT))
-    .add(CURRENT_USER_RETWEET_ID_FIELD, DataTypes.IntegerType)
+    .add(CURRENT_USER_RETWEET_ID_FIELD, DataTypes.StringType)
+    .add(CONTRIBUTOR_FIELD,DataTypes.createArrayType(DataTypes.StringType))
     .add(LANG_FIELD, DataTypes.StringType)
 
   val GRAPH_PAYLOAD_STRUCT:StructType= new StructType()
     .add("payload",STATUS_STRUCT)
+
+
 
 }
