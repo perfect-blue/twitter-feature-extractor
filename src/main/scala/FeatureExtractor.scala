@@ -56,14 +56,15 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
 
 
     val weighted_graph=graphTweet
-      .groupBy(window(col("CreatedAt"),"10 minutes").as("Time"),
+      .groupBy(window(col("CreatedAt"),"1 hours").as("Time"),
         col("Source"),
         col("Target"))
       .agg(
-        sum("Interaction_weight").as("Interaction")
+        sum("Interaction_weight").as("Count_Interaction"),
+        avg("Interaction_weight").as("Avg_Interaction")
       )
 
-    weighted_graph.sort($"Interaction".desc)
+    weighted_graph.sort($"Count_Interaction".desc)
    }
 
   /**
