@@ -20,15 +20,16 @@ object Main {
 
     setupLogging()
     val featureExtractor:FeatureExtractor=new FeatureExtractor(spark,twitterDF)
-    val GraphFeatureDF = featureExtractor.graphFeature()
+    val graphEdges = featureExtractor.generateGraphEdges()
+    val graphNodes = featureExtractor.generateNodes()
 
-    GraphFeatureDF
+    graphNodes
       .writeStream
       .format("console")
 //      .trigger(
 //        Trigger.ProcessingTime(2.minutes)
 //      )
-      .outputMode("complete")
+      .outputMode("append")
       .option("truncate",false)
 //      .option("header",true)
 //      .option("path","D:/dump/graph-tweet/result")

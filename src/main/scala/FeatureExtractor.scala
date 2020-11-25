@@ -12,6 +12,7 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
 
   val tweet=twitterBaseDF
     .select(
+      $"tweet.payload.CreatedAt".as("Timestamp"),
       to_timestamp(from_unixtime(col("tweet.payload.CreatedAt").divide(1000))) as("CreatedAt"),
       $"tweet.payload.Id",
       $"tweet.payload.Text",
@@ -34,8 +35,19 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
       expr("tweet.payload.UserMentionEntities.Text") as("Mention_UserName")
     ).filter($"tweet.payload.Lang"==="in" || $"tweet.payload.Lang"==="en")
 
+  def generateNodes():DataFrame={
+    tweet
+//      .selectExpr("Id","Text","UserID","UserName",
+//        "FollowersCount","FriendsCount","FavouritesCount","StatusesCount",
+//        "Verified","Mention_Id","Mention_Name")
+  }
 
-  def graphFeature():DataFrame={
+  /**
+   * For window functions, window start at Jan 1 1970, 0:00 (midnight) GMT
+   * My computer is 18:00 GMT +7
+   * @return
+   */
+  def generateGraphEdges():DataFrame={
     val graphTweet=tweet
       .withColumn("Interactions",
         getInteraction(col("InReplyToScreenName"),col("Retweet"), col("Mention_UserName")))
@@ -57,7 +69,7 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
 
 
     val weighted_graph=graphTweet
-      .groupBy(window(col("CreatedAt"),"1 hours").as("Time"),
+      .groupBy(window(col("CreatedAt"),"1 day","1 hour").as("Time"),
         col("Source"),
         col("Target"))
       .agg(
@@ -68,7 +80,7 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
     graphTweet.printSchema()
     weighted_graph.printSchema()
     weighted_graph
-      .withColumn("Partition",getPartition($"Time.end"))
+      .withColumn("Partition",getPartition($"Time.start"))
       .select(
         $"Time.start",
         $"Time.end",
@@ -79,7 +91,7 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
         $"Partition"(2).as("Day"),
         $"Partition"(1).as("Month"),
         $"Partition"(0).as("Year")
-      )
+      ).orderBy($"start",$"Count_Interaction".desc)
    }
 
   /**
