@@ -10,7 +10,7 @@ object Main {
     .getOrCreate()
 
   def main(args: Array[String]): Unit = {
-    val input=setupInput()
+    val input=setupInput("input.txt")
 
     val twitterDF: DataFrame = spark.readStream
       .format("kafka")
@@ -18,39 +18,24 @@ object Main {
       .option("subscribe",input(1))
       .load()
 
+    val path=input(2)
+    val windows=input(3)
+    val watermark=input(4)
+    val trigger=input(5).split(" ")(0)
+    val format=input(6)
+
     setupLogging()
     val featureExtractor:FeatureExtractor=new FeatureExtractor(spark,twitterDF)
     val graphEdges = featureExtractor.generateEdges()
     val graphNodes = featureExtractor.generateNodes()
-    val weighted_graph=featureExtractor.generateWeightedEdges()
+    val weightedGraphEdges=featureExtractor.generateWeightedEdges(windows, watermark)
 
-   val a = weighted_graph
-      .writeStream
-      .format("console")
-      .trigger(
-        Trigger.ProcessingTime(5.minutes)
-      )
-      .outputMode("append")
-      .option("truncate",false)
-//      .option("header",true)
-//      .option("path","D:/dump/graph-tweet/result")
-//      .option("checkpointLocation","D:/dump/graph-tweet/checkpoint")
-      .start()
+    val graphEdgesQuery=saveToFiles(graphEdges,true,format,path+"edges",trigger)
+    val graphNodesQuery=saveToFiles(graphNodes,true,format,path+"nodes",trigger)
+    val weightedEdgesQuery=saveToFiles(weightedGraphEdges,true,format,path +"weighted-edges",trigger)
 
-    val b = weighted_graph
-      .writeStream
-      .format("parquet")
-      .trigger(
-        Trigger.ProcessingTime(5.minutes)
-      )
-      .outputMode("append")
-      .option("truncate",false)
-      .option("header",true)
-      .option("path","D:/dump/graph-tweet/result")
-      .option("checkpointLocation","D:/dump/graph-tweet/checkpoint")
-      .start()
-
-    a.awaitTermination()
-    b.awaitTermination()
+    graphEdgesQuery.awaitTermination()
+    graphNodesQuery.awaitTermination()
+    weightedEdgesQuery.awaitTermination()
   }
 }

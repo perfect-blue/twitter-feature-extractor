@@ -71,7 +71,7 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
    * My computer is 18:00 GMT +7
    * @return
    */
-  def generateWeightedEdges():DataFrame={
+  def generateWeightedEdges(windows:String, watermarks:String):DataFrame={
     val graphTweet=tweet
       .withColumn("Interactions",
         getInteraction(col("InReplyToScreenName"),col("Retweet"), col("Mention_UserName")))
@@ -89,7 +89,7 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
         $"Interactions"(1).as("Target"),
         $"Interactions"(2).cast(DataTypes.DoubleType).as("Interaction_weight"),
         $"Interactions"(3).cast(DataTypes.IntegerType).as("Interaction_count")
-      )
+      ).where("Target IS NOT NULL")
 
     /**
      * 5 minutes watermark means:
@@ -97,8 +97,8 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
      *  - an element, row, record will be considered if after the watermark
      */
     val weighted_graph=graphTweet
-      .withWatermark("CreatedAt","5 minutes")
-      .groupBy(window(col("CreatedAt"), "5 minutes").as("Time"),
+      .withWatermark("CreatedAt",windows)
+      .groupBy(window(col("CreatedAt"), watermarks).as("Time"),
         col("Source"),
         col("Target"))
       .agg(
