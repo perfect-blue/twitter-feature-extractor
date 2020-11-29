@@ -30,6 +30,7 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
       $"tweet.payload.User.FavouritesCount",
       $"tweet.payload.User.StatusesCount",
       $"tweet.payload.User.Verified",
+      $"tweet.payload.Lang",
       expr("tweet.payload.UserMentionEntities.Id") as("Mention_Id"),
       expr("tweet.payload.UserMentionEntities.Name") as("Mention_Name"),
       expr("tweet.payload.UserMentionEntities.Text") as("Mention_UserName")
@@ -37,9 +38,32 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
 
   def generateNodes():DataFrame={
     tweet
-//      .selectExpr("Id","Text","UserID","UserName",
-//        "FollowersCount","FriendsCount","FavouritesCount","StatusesCount",
-//        "Verified","Mention_Id","Mention_Name")
+      .withColumn("Partition",getPartition($"CreatedAt"))
+      .select(
+        $"UserName",
+        $"Text",
+        $"FollowersCount",$"FriendsCount",$"FavouritesCount",$"StatusesCount",
+        $"Verified",
+        $"Partition"(2).as("Day"),
+        $"Partition"(1).as("Month"),
+        $"Partition"(0).as("Year")
+      )
+  }
+
+  def generateEdges():DataFrame={
+    val edges = tweet
+      .withColumn("Interactions",
+      getInteraction(col("InReplyToScreenName"),col("Retweet"), col("Mention_UserName")))
+      .withColumn("Partition",getPartition($"CreatedAt"))
+      .select(
+        $"UserName".as("Source"),
+        $"Interactions"(1).as("Target"),
+        $"Partition"(2).as("Day"),
+        $"Partition"(1).as("Month"),
+        $"Partition"(0).as("Year")
+      )
+
+      edges
   }
 
   /**
@@ -47,7 +71,7 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
    * My computer is 18:00 GMT +7
    * @return
    */
-  def generateGraphEdges():DataFrame={
+  def generateWeightedEdges():DataFrame={
     val graphTweet=tweet
       .withColumn("Interactions",
         getInteraction(col("InReplyToScreenName"),col("Retweet"), col("Mention_UserName")))
@@ -67,13 +91,18 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
         $"Interactions"(3).cast(DataTypes.IntegerType).as("Interaction_count")
       )
 
-
+    /**
+     * 5 minutes watermark means:
+     *  - a window will only be considered until the watermark surpases the window end
+     *  - an element, row, record will be considered if after the watermark
+     */
     val weighted_graph=graphTweet
-      .groupBy(window(col("CreatedAt"),"1 day","1 hour").as("Time"),
+      .withWatermark("CreatedAt","5 minutes")
+      .groupBy(window(col("CreatedAt"), "5 minutes").as("Time"),
         col("Source"),
         col("Target"))
       .agg(
-        sum("Interaction_count").as("Count_Interaction"),
+        count("Target").as("Count_Interaction"),
         avg("Interaction_weight").as("Avg_Interaction")
       )
 
@@ -82,16 +111,13 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
     weighted_graph
       .withColumn("Partition",getPartition($"Time.start"))
       .select(
-        $"Time.start",
-        $"Time.end",
         $"Source",
         $"Target",
         $"Count_Interaction",
         $"Avg_Interaction",
-        $"Partition"(2).as("Day"),
-        $"Partition"(1).as("Month"),
-        $"Partition"(0).as("Year")
-      ).orderBy($"start",$"Count_Interaction".desc)
+        $"Time.start",
+        $"Time.end"
+      )
    }
 
   /**

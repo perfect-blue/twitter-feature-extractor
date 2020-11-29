@@ -20,22 +20,37 @@ object Main {
 
     setupLogging()
     val featureExtractor:FeatureExtractor=new FeatureExtractor(spark,twitterDF)
-    val graphEdges = featureExtractor.generateGraphEdges()
+    val graphEdges = featureExtractor.generateEdges()
     val graphNodes = featureExtractor.generateNodes()
+    val weighted_graph=featureExtractor.generateWeightedEdges()
 
-    graphNodes
+   val a = weighted_graph
       .writeStream
       .format("console")
-//      .trigger(
-//        Trigger.ProcessingTime(2.minutes)
-//      )
+      .trigger(
+        Trigger.ProcessingTime(5.minutes)
+      )
       .outputMode("append")
       .option("truncate",false)
 //      .option("header",true)
 //      .option("path","D:/dump/graph-tweet/result")
 //      .option("checkpointLocation","D:/dump/graph-tweet/checkpoint")
       .start()
-      .awaitTermination()
 
+    val b = weighted_graph
+      .writeStream
+      .format("parquet")
+      .trigger(
+        Trigger.ProcessingTime(5.minutes)
+      )
+      .outputMode("append")
+      .option("truncate",false)
+      .option("header",true)
+      .option("path","D:/dump/graph-tweet/result")
+      .option("checkpointLocation","D:/dump/graph-tweet/checkpoint")
+      .start()
+
+    a.awaitTermination()
+    b.awaitTermination()
   }
 }
