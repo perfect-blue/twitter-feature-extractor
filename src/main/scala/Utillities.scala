@@ -37,7 +37,7 @@ object Utillities {
         Trigger.ProcessingTime(trigger.toInt.minutes)
       )
       .outputMode("append")
-      .option("truncate",false)
+      .option("truncate","false")
       .option("header",header)
       .option("path",path)
       .option("checkpointLocation", path+"/checkpoint")
@@ -47,12 +47,12 @@ object Utillities {
   def printConsole(query: DataFrame,trigger:String,mode:String):StreamingQuery={
       query
         .writeStream
+        .option("truncate",false)
         .format("console")
         .trigger(
           Trigger.ProcessingTime(5.minutes)
         )
         .outputMode(mode)
-        .option("truncate",false)
         .start()
   }
 }
