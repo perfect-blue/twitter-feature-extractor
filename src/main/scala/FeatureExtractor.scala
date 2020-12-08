@@ -44,8 +44,13 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
         .otherwise(null).as("TargetUser")
     ).filter($"tweet.payload.Lang"==="in" || $"tweet.payload.Lang"==="en")
 
-  val flat_tweet=tweet
+
+
+
+  def generateNodes():DataFrame={
+    val flat_tweet=tweet
     .withColumn("Interaction",getInteraction($"InReplyToScreenName",$"Retweet",$"Quote"))
+      .withColumn("Partition",getPartition($"CreatedAt"))
     .select(
       $"CreatedAt".as("SourceCreatedAt"),
       $"TweetId".as("SourceTweetId"),
@@ -65,34 +70,39 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
       when($"Interaction"==="retweet",$"TargetRetweetCount")
         .when($"Interaction"==="quote",$"TargetQuoteCount")
         .otherwise(null).as("TargetRetweetCount"),
-      $"TargetUser.ScreenName".as("TargetUsername"),
+      when($"Interaction"==="reply",$"InReplyToScreenName")
+        .when($"Interaction"==="tweet",null).otherwise($"TargetUser.ScreenName").as("TargetUsername"),
       $"TargetUser.FollowersCount".as("TargetFollowers"),
       $"TargetUser.FriendsCount".as("TargetFriends"),
       $"TargetUser.FavouritesCount".as("TargetFavourites"),
       $"TargetUser.StatusesCount".as("TargetStatuses"),
-      $"TargetUser.Verified".as("TargetVerified")
+      $"TargetUser.Verified".as("TargetVerified"),
+      $"Partition"(0).as("Year"),
+      $"Partition"(1).as("Month"),
+      $"Partition"(2).as("Day")
     )
 
+    val nodes = flat_tweet
 
-  def generateNodes():DataFrame={
-    flat_tweet
+    nodes
   }
 
-//  def generateEdges():DataFrame={
-//    val edges = tweet
-//      .withColumn("Interactions",
-//      getInteraction(col("InReplyToScreenName"),col("Retweet"), col("Mention_UserName")))
-//      .withColumn("Partition",getPartition($"CreatedAt"))
-//      .select(
-//        $"UserName".as("Source"),
-//        $"Interactions"(1).as("Target"),
-//        $"Partition"(2).as("Day"),
-//        $"Partition"(1).as("Month"),
-//        $"Partition"(0).as("Year")
-//      )
-//
-//      edges
-//  }
+  def generateEdges():DataFrame={
+    val edges=tweet
+      .withColumn("Interaction",getInteraction($"InReplyToScreenName",$"Retweet",$"Quote"))
+      .withColumn("Partition",getPartition($"CreatedAt"))
+      .select(
+        $"ScreenName".as("Source"),
+        when($"Interaction"==="reply",$"InReplyToScreenName")
+          .when($"Interaction"==="tweet",null).otherwise($"TargetUser.ScreenName").as("Target"),
+        $"Interaction",
+        $"Partition"(0).as("Year"),
+        $"Partition"(1).as("Month"),
+        $"Partition"(2).as("Day")
+      )
+
+    edges
+  }
 
   /**
    * For window functions, window start at Jan 1 1970, 0:00 (midnight) GMT
@@ -100,49 +110,38 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
    * @return
    */
   def generateWeightedEdges(windows:String, watermarks:String):DataFrame={
-    val graphTweet=tweet
-      .withColumn("Interactions",
-        getInteraction(col("InReplyToScreenName"),col("Retweet"), col("Mention_UserName")))
+    val edges=tweet
+      .withColumn("Interaction",getInteraction($"InReplyToScreenName",$"Retweet",$"Quote"))
       .select(
         $"CreatedAt",
-        $"Id",
-        $"Text",
-        $"UserName".as("Source"),
-        $"CurrentUserRetweetId",
-        $"FollowersCount",
-        $"FriendsCount",
-        $"FavouritesCount",
-        $"StatusesCount",
-        $"Interactions"(0).as("Interaction"),
-        $"Interactions"(1).as("Target"),
-        $"Interactions"(2).cast(DataTypes.DoubleType).as("Interaction_weight"),
-        $"Interactions"(3).cast(DataTypes.IntegerType).as("Interaction_count")
-      ).where("Target IS NOT NULL")
+        $"ScreenName".as("Source"),
+        when($"Interaction"==="reply",$"InReplyToScreenName")
+          .when($"Interaction"==="tweet",null).otherwise($"TargetUser.ScreenName").as("Target"),
+        $"Interaction"
+      )
 
     /**
      * 5 minutes watermark means:
      *  - a window will only be considered until the watermark surpases the window end
      *  - an element, row, record will be considered if after the watermark
      */
-    val weighted_graph=graphTweet
+    val weighted_edges=edges
       .withWatermark("CreatedAt",windows)
       .groupBy(window(col("CreatedAt"), watermarks).as("Time"),
         col("Source"),
-        col("Target"))
+        col("Target"),
+        col("Interaction")
+      )
       .agg(
-        count("Target").as("Count_Interaction"),
-        avg("Interaction_weight").as("Avg_Interaction")
+        count("Target").as("Count_Interaction")
       )
 
-    graphTweet.printSchema()
-    weighted_graph.printSchema()
-    weighted_graph
-      .withColumn("Partition",getPartition($"Time.start"))
+    weighted_edges.printSchema()
+    weighted_edges
       .select(
         $"Source",
         $"Target",
         $"Count_Interaction",
-        $"Avg_Interaction",
         $"Time.start",
         $"Time.end"
       )
@@ -170,20 +169,7 @@ class FeatureExtractor(spark:SparkSession,dataframe:DataFrame) {
       "tweet"
     }
   }
-//  def interaction:(String,Boolean,Seq[String])=>
-//    Array[String]=(inReplyToScreenName:String,retweet:Boolean,mention:Seq[String])=>{
-//      val isTweet=inReplyToScreenName==null && retweet==false
-//      val isReply=inReplyToScreenName!=null && retweet==false
-//      val isRetweet=inReplyToScreenName==null && retweet==true
-//
-//    if(isReply){
-//      Array("reply",inReplyToScreenName,"0.75","1")
-//    }else if(isRetweet){
-//      Array("retweet",mention(0),"0.5","1")
-//    }else{
-//      Array("tweet",null,"0.2","1")
-//    }
-//  }
+
 
   private val getPartition = spark.udf.register("getPartition",partitioning)
   def partitioning:String=>Array[String]=(column:String)=>{

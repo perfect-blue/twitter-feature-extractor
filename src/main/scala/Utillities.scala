@@ -29,19 +29,22 @@ object Utillities {
     parameters
   }
 
-  def saveToFiles(query: DataFrame, header:Boolean,format:String,path:String,trigger:String):StreamingQuery={
-    query
-    .writeStream
-      .format(format)
-      .trigger(
-        Trigger.ProcessingTime(trigger.toInt.minutes)
-      )
-      .outputMode("append")
-      .option("truncate","false")
-      .option("header",header)
-      .option("path",path)
-      .option("checkpointLocation", path+"/checkpoint")
-      .start()
+  def saveToFiles(query: DataFrame, header:Boolean,format:String,partition:Boolean,path:String,trigger:String):StreamingQuery={
+      query
+        .writeStream
+        .format(format)
+        .trigger(
+          Trigger.ProcessingTime(trigger.toInt.minutes)
+        )
+        .outputMode("append")
+        .option("truncate","false")
+        .option("header",header)
+        .option("path",path)
+        .partitionBy("Year","Month","Day")
+        .option("checkpointLocation", path+"/checkpoint")
+        .start()
+
+
   }
 
   def printConsole(query: DataFrame,trigger:String,mode:String):StreamingQuery={

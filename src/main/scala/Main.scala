@@ -24,18 +24,19 @@ object Main {
     val watermark=input(4)
     val trigger=input(5).split(" ")(0)
     val format=input(6)
+    val keyword="/"+input(7)+"/"
 
     setupLogging()
     val featureExtractor:FeatureExtractor=new FeatureExtractor(spark,twitterDF)
-//    val graphEdges = featureExtractor.generateEdges()
+    val graphEdges = featureExtractor.generateEdges()
     val graphNodes = featureExtractor.generateNodes()
 //    val weightedGraphEdges=featureExtractor.generateWeightedEdges(windows, watermark)
-//
-//    val graphEdgesQuery=saveToFiles(graphEdges,true,format,path+"edges",trigger)
-    val graphNodesQuery=saveToFiles(graphNodes,true,format,path+"nodes",trigger)
-//    val weightedEdgesQuery=saveToFiles(weightedGraphEdges,true,format,path +"weighted-edges",trigger)
-//
-//    graphEdgesQuery.awaitTermination()
+
+    val graphEdgesQuery=saveToFiles(graphEdges,true,format,true,path+keyword+"edges",trigger)
+    val graphNodesQuery=saveToFiles(graphNodes,true,format,true,path+keyword+"nodes",trigger)
+//    val weightedEdgesQuery=saveToFiles(weightedGraphEdges,true,format,false,path +"weighted-edges",trigger)
+
+    graphEdgesQuery.awaitTermination()
     graphNodesQuery.awaitTermination()
 //    weightedEdgesQuery.awaitTermination()
   }
