@@ -19,21 +19,23 @@ object Main {
       .load()
 
     val path=input(2)
-    val windows=input(3)
-    val watermark=input(4)
-    val trigger=input(5).split(" ")(0)
-    val format=input(6)
-    val keyword="/"+input(7)+"/"
+    val trigger=input(3).split(" ")(0)
+    val format=input(4)
+    val keyword="/"+input(5)+"/"
 
     setupLogging()
     val featureExtractor:FeatureExtractor=new FeatureExtractor(spark,twitterDF)
     val graphEdges = featureExtractor.generateEdges()
     val graphNodes = featureExtractor.generateNodes()
 
+    println(graphEdges.isStreaming)
+    println(graphNodes.isStreaming)
+
     val graphEdgesQuery=saveToFiles(graphEdges,true,format,path+keyword+"edges",trigger)
     val graphNodesQuery=saveToFiles(graphNodes,true,format,path+keyword+"nodes",trigger)
 
     graphEdgesQuery.awaitTermination()
     graphNodesQuery.awaitTermination()
+
   }
 }

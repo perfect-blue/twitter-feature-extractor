@@ -186,8 +186,6 @@ object Schema {
     .add(USER_FIELD, USER_STRUCT)
     .add(QUOTED_RETWEET_FIELD,DataTypes.BooleanType)
     .add(USER_MENTION_ENTITY_FIELD,DataTypes.createArrayType(USER_MENTION_ENTITY_STRUCT))
-    .add(QUOTED_CURRENT_USER_RETWEET_ID_FIELD, DataTypes.StringType)
-    .add( QUOTED_CONTRIBUTOR_FIELD,DataTypes.createArrayType(DataTypes.StringType))
     .add(QUOTED_LANG_FIELD, DataTypes.StringType)
     .add(URL_ENTITY_FIELD,DataTypes.createArrayType(URL_ENTITY_STRUCT))
     .add(MEDIA_ENTITY_FIELD,DataTypes.createArrayType(MEDIA_ENTITY_STRUCT))

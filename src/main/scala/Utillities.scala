@@ -48,10 +48,10 @@ object Utillities {
   def printConsole(query: DataFrame,trigger:String,mode:String):StreamingQuery={
       query
         .writeStream
-        .option("truncate",false)
+        .option("truncate",true)
         .format("console")
         .trigger(
-          Trigger.ProcessingTime(5.minutes)
+          Trigger.ProcessingTime(1.minutes)
         )
         .outputMode(mode)
         .start()
