@@ -1,7 +1,7 @@
 # Introduction
 This connector uses spark structured streaming to listen to kafka topics which contains twitter stream data. The goal is to transform unstructured data into structured data that will be used to create connection graph.
 
-#Configuration
+# Configuration
 create configuration file
 ```
 nano configuration.txt
@@ -25,17 +25,17 @@ keyword=
 |output.format |File format CSV or Parquet| String | null | High | 
 |keyword | save file into seperate 'keyword' folder| null | Low |
 
-#Output Schemas
-##Edge
+# Output Schemas
+## Edge
 return the table of graph's edge
 
 | Column Name | Optional | Type|Documentation|
 |-------------|----------|-----|--------------|
 |Source | False | String | User who initiate interaction|
 |Target | False | String | User to whom interaction being initiated|
-|Interaction| String | Type of interaction between 2 users (Retweet, Quote, Reply)|
+|Interaction| String | False |Type of interaction between 2 users (Retweet, Quote, Reply)|
 
-##Nodes
+## Nodes
 Return the table of graph's node
 |Column Name | Optional | Type | Documentation |
 |------------|----------|------|---------------|
@@ -49,7 +49,7 @@ Return the table of graph's node
 | RetweeetObject | True | [String] | Retweeted User information |
 | QuoteObject | True | [String] | Quoted user information |
 
-#Running
+# Running
 ```
 spark-submit --class Main \
 --master <master-url> \
